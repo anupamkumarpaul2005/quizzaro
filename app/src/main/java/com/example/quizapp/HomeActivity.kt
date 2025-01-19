@@ -60,4 +60,11 @@ class HomeActivity : AppCompatActivity() {
         return Pair(username, maxScore)
     }
 
+    override fun onResume() {
+        super.onResume()
+        val (username, maxScore) = getUserData(this)
+
+        binding.greeting.text = "Hello, $username"
+        binding.maxScore.text = maxScore.toString()
+    }
 }
