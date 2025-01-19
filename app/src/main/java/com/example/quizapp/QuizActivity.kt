@@ -1,6 +1,9 @@
 package com.example.quizapp
 
+import android.content.ContentValues.TAG
+import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.enableEdgeToEdge
@@ -11,6 +14,9 @@ import com.android.volley.Request
 import com.android.volley.toolbox.Volley
 import com.android.volley.toolbox.JsonObjectRequest
 import com.example.quizapp.databinding.ActivityQuizBinding
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
+import com.google.firebase.firestore.firestore
 
 
 class QuizActivity : AppCompatActivity() {
@@ -56,6 +62,32 @@ class QuizActivity : AppCompatActivity() {
                 score++
         }
         if(count>=list.size) {
+            val (username, maxScore) = getUserData(this)
+            if (score>maxScore) {
+                val userId = Firebase.auth.currentUser?.uid.toString()
+                Firebase.firestore.collection("userBase")
+                    .whereEqualTo("userId", userId)
+                    .get()
+                    .addOnCompleteListener { result ->
+                        if (result.isSuccessful) {
+                            for (document in result.result!!) {
+                                // Update the maxScore field for the current user document
+                                Firebase.firestore.collection("userBase")
+                                    .document(document.id)
+                                    .update("maxScore", score)
+                                    .addOnSuccessListener {
+                                        Log.d(TAG, "MaxScore updated successfully")
+                                    }
+                                    .addOnFailureListener { exception ->
+                                        Log.e(TAG, "Error updating maxScore: ", exception)
+                                    }
+                            }
+                        } else {
+                            Log.e(TAG, "Error fetching documents: ", result.exception)
+                        }
+                    }
+                saveUserData(this, username, score)
+            }
             val intent= Intent(this, ScoreActivity::class.java)
             intent.putExtra("SCORE",score)
             startActivity(intent)
@@ -70,6 +102,19 @@ class QuizActivity : AppCompatActivity() {
             binding.option4.text = list[count].option4
             count++
         }
+    }
+
+    fun saveUserData(context: Context, username: String?, maxScore: Int) {
+        // Get the SharedPreferences instance
+        val sharedPref: SharedPreferences = context.getSharedPreferences("userPrefs", Context.MODE_PRIVATE)
+        val editor = sharedPref.edit()
+
+        // Save the username and maxScore
+        editor.putString("username", username)
+        editor.putInt("maxScore", maxScore)
+
+        // Commit the changes
+        editor.apply()
     }
 
     private fun fetchQuestions(url: String) {
@@ -141,4 +186,15 @@ class QuizActivity : AppCompatActivity() {
         return questionList
     }
 
+    fun getUserData(context: Context): Pair<String?, Int> {
+        // Get the SharedPreferences instance
+        val sharedPref: SharedPreferences = context.getSharedPreferences("userPrefs", Context.MODE_PRIVATE)
+
+        // Retrieve the saved username and maxScore
+        val username = sharedPref.getString("username", "User") // Default to "User" if not found
+        val maxScore = sharedPref.getInt("maxScore", 0) // Default to 0 if not found
+
+        // Return the data as a pair
+        return Pair(username, maxScore)
+    }
 }

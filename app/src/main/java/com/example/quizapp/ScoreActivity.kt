@@ -1,6 +1,8 @@
 package com.example.quizapp
 
+import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.view.View
 import android.widget.TextView
@@ -26,6 +28,10 @@ class ScoreActivity : AppCompatActivity() {
         var score: Int = intent.getIntExtra("SCORE",0)
         binding.newScore.text = score.toString()
 
+
+        val (username, maxScore) = getUserData(this)
+        binding.maxScore.text = maxScore.toString()
+
         if(score<5)
             binding.successImg.visibility = View.INVISIBLE
         else
@@ -42,5 +48,17 @@ class ScoreActivity : AppCompatActivity() {
             startActivity(intent)
             finish()
         }
+    }
+
+    fun getUserData(context: Context): Pair<String?, Int> {
+        // Get the SharedPreferences instance
+        val sharedPref: SharedPreferences = context.getSharedPreferences("userPrefs", Context.MODE_PRIVATE)
+
+        // Retrieve the saved username and maxScore
+        val username = sharedPref.getString("username", "User") // Default to "User" if not found
+        val maxScore = sharedPref.getInt("maxScore", 0) // Default to 0 if not found
+
+        // Return the data as a pair
+        return Pair(username, maxScore)
     }
 }
