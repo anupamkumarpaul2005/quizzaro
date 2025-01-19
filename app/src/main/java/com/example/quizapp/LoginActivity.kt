@@ -17,10 +17,12 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.firestore
 import android.content.Context
 import android.content.SharedPreferences
+import android.view.View
 
 
 class LoginActivity : AppCompatActivity() {
     private lateinit var binding: ActivityLoginBinding
+    private var isLoginMode = true
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding=ActivityLoginBinding.inflate(layoutInflater)
@@ -32,26 +34,102 @@ class LoginActivity : AppCompatActivity() {
             insets
         }
 
-        binding.button.setOnClickListener {
-            Firebase.auth.createUserWithEmailAndPassword(binding.Email.editText?.text.toString(),
-                binding.Password.editText?.text.toString()).addOnCompleteListener {
-                    if(it.isSuccessful) {
-                        val user = User(FirebaseAuth.getInstance().currentUser?.uid, binding.Name.editText?.text.toString(), binding.Email.editText?.text.toString(), 0)
-                        addUserToFirestore(user)
-                        saveUserData(this, binding.Name.editText?.text.toString(), 0)
-                        Toast.makeText(this,"User Created!!!",Toast.LENGTH_LONG).show()
-                        val intent = Intent(this, HomeActivity::class.java)
-                        startActivity(intent)
-                        finish()
-                    }
-                    else {
-                        Toast.makeText(this,"User NOT Created!!!",Toast.LENGTH_LONG).show()
-                    }
+        updateUIForMode()
+
+        binding.signUpButton.setOnClickListener {
+            val email = binding.Email.editText?.text.toString()
+            val password = binding.Password.editText?.text.toString()
+            val name = binding.Name.editText?.text.toString()
+
+            if (isLoginMode) {
+                logInUser(email, password)
+            } else {
+                signUpUser(name, email, password)
+            }
+        }
+
+        binding.toggleLoginSignup.setOnClickListener {
+            isLoginMode = !isLoginMode
+            updateUIForMode()
+        }
+
+    }
+
+    private fun updateUIForMode() {
+        if (isLoginMode) {
+            binding.Name.visibility = View.GONE
+            binding.signUpButton.text = "Log In"
+            binding.toggleLoginSignup.text = "Don’t have an account? Sign Up"
+        } else {
+            binding.Name.visibility = View.VISIBLE
+            binding.signUpButton.text = "Sign Up"
+            binding.toggleLoginSignup.text = "Already have an account? Log In"
+        }
+    }
+
+    private fun logInUser(email: String, password: String) {
+        Firebase.auth.signInWithEmailAndPassword(email, password).addOnCompleteListener {
+            if (it.isSuccessful) {
+                val userId = FirebaseAuth.getInstance().currentUser?.uid
+                if (userId != null) {
+                    fetchUserDataAndUpdatePrefs(userId)
+                } else {
+                    Toast.makeText(this, "User ID is null", Toast.LENGTH_SHORT).show()
+                }
+                val intent = Intent(this, HomeActivity::class.java)
+                startActivity(intent)
+                finish()
+            } else {
+                Toast.makeText(this, "Login failed: ${it.exception?.message}", Toast.LENGTH_LONG).show()
             }
         }
     }
 
+    private fun signUpUser(name: String, email: String, password: String) {
+        Firebase.auth.createUserWithEmailAndPassword(email, password).addOnCompleteListener {
+            if (it.isSuccessful) {
+                val user = User(FirebaseAuth.getInstance().currentUser?.uid, name, email, 0)
+                addUserToFirestore(user)
+                saveUserData(this, name, 0)
+                Toast.makeText(this, "User created successfully!", Toast.LENGTH_LONG).show()
+                val intent = Intent(this, HomeActivity::class.java)
+                startActivity(intent)
+                finish()
+            } else {
+                Toast.makeText(this, "Signup failed: ${it.exception?.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
 
+    private fun fetchUserDataAndUpdatePrefs(userId: String) {
+        val db = FirebaseFirestore.getInstance()
+        db.collection("userBase")
+            .whereEqualTo("userId", userId)
+            .get()
+            .addOnSuccessListener { documents ->
+                if (!documents.isEmpty) {
+                    for (document in documents) {
+                        val username = document.getString("username") ?: "Unknown"
+                        val maxScore = document.getLong("maxScore")?.toInt() ?: 0
+
+                        // Update shared preferences
+                        saveUserData(this, username, maxScore)
+
+                        Toast.makeText(this, "Welcome back, $username!", Toast.LENGTH_SHORT).show()
+
+                        // Navigate to Home Activity
+                        val intent = Intent(this, HomeActivity::class.java)
+                        startActivity(intent)
+                        finish()
+                    }
+                } else {
+                    Toast.makeText(this, "User not found in Firestore", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .addOnFailureListener { exception ->
+                Toast.makeText(this, "Error fetching user data: ${exception.message}", Toast.LENGTH_SHORT).show()
+            }
+    }
 
 
     fun saveUserData(context: Context, username: String, maxScore: Int) {

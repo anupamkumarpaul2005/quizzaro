@@ -33,7 +33,6 @@ class MainActivity : AppCompatActivity() {
             }
             else{
                 val intent= Intent(this, LoginActivity::class.java)
-                intent.putExtra("MODE","SIGNUP")
                 startActivity(intent)
                 finish()
             }
