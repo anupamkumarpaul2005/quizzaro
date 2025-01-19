@@ -2,12 +2,16 @@ package com.example.quizapp
 
 import android.content.Intent
 import android.os.Bundle
-import android.widget.Toast
+import android.util.Log
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.android.volley.Request
+import com.android.volley.toolbox.Volley
+import com.android.volley.toolbox.JsonObjectRequest
 import com.example.quizapp.databinding.ActivityQuizBinding
+
 
 class QuizActivity : AppCompatActivity() {
     private lateinit var binding: ActivityQuizBinding
@@ -26,13 +30,11 @@ class QuizActivity : AppCompatActivity() {
         }
 
         list = ArrayList<QuestionModel>()
-        list.add(QuestionModel("When did India gain Independence?", "1945", "1947", "1950", "1962", 2))
-        list.add(QuestionModel("What is the capital of France?", "Berlin", "Madrid", "Paris", "Rome", 3))
-        list.add(QuestionModel("Which planet is known as the Red Planet?", "Earth", "Mars", "Jupiter", "Venus", 2))
-        list.add(QuestionModel("Who wrote 'Romeo and Juliet'?", "Shakespeare", "Dickens", "Tolstoy", "Hemingway", 1))
-        list.add(QuestionModel("What is the square root of 64?", "6", "7", "8", "9", 3))
 
-        nextData(0)
+
+        val url = "https://opentdb.com/api.php?amount=10&category=9&type=multiple"
+        fetchQuestions(url)
+
         binding.option1.setOnClickListener {
             nextData(1)
         }
@@ -69,4 +71,74 @@ class QuizActivity : AppCompatActivity() {
             count++
         }
     }
+
+    private fun fetchQuestions(url: String) {
+        val requestQueue = Volley.newRequestQueue(this)
+
+        val jsonObjectRequest = JsonObjectRequest(
+            Request.Method.GET, url, null,
+            { response ->
+                // Parse the questions and populate the list
+                list = parseQuestions(response)
+
+                // Log the questions to verify
+                list.forEach { question ->
+                    Log.d("QUESTION_MODEL", question.toString())
+                }
+                if (list.isNotEmpty()) {
+                    nextData(0) // Call only after data is fetched and list is populated
+                } else {
+                    Log.e("FETCH_ERROR", "No questions fetched from the API.")
+                }
+            },
+            { error ->
+                // Log the error
+                Log.e("API_ERROR", "Error: ${error.message}")
+            }
+        )
+
+        // Add the request to the queue
+        requestQueue.add(jsonObjectRequest)
+    }
+
+    private fun parseQuestions(response: org.json.JSONObject): ArrayList<QuestionModel> {
+        val questionList = ArrayList<QuestionModel>()
+
+        try {
+            val results = response.getJSONArray("results")
+            for (i in 0 until results.length()) {
+                val questionObject = results.getJSONObject(i)
+                val question = questionObject.getString("question")
+                val correctAnswer = questionObject.getString("correct_answer")
+                val incorrectAnswers = questionObject.getJSONArray("incorrect_answers")
+
+                // Combine correct and incorrect answers
+                val options = mutableListOf<String>()
+                for (j in 0 until incorrectAnswers.length()) {
+                    options.add(incorrectAnswers.getString(j))
+                }
+                options.add(correctAnswer)
+                options.shuffle() // Shuffle the options
+
+                // Determine the index of the correct answer (1-based index for compatibility)
+                val correctAnswerIndex = options.indexOf(correctAnswer) + 1
+
+                // Map to QuestionModel
+                val questionModel = QuestionModel(
+                    question = question,
+                    option1 = options.getOrNull(0),
+                    option2 = options.getOrNull(1),
+                    option3 = options.getOrNull(2),
+                    option4 = options.getOrNull(3),
+                    correctAnswer = correctAnswerIndex
+                )
+                questionList.add(questionModel)
+            }
+        } catch (e: Exception) {
+            Log.e("PARSE_ERROR", "Error parsing JSON: ${e.message}")
+        }
+
+        return questionList
+    }
+
 }
