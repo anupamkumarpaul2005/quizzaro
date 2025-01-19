@@ -28,7 +28,7 @@
         android:paddingLeft="8dp"
         android:paddingRight="8dp"
         android:text="0/10"
-        android:textColor="#7440D0"
+        android:textColor="@color/highlight"
         android:textSize="24sp"
         app:layout_constraintBottom_toTopOf="@+id/Question"
         app:layout_constraintEnd_toEndOf="parent"

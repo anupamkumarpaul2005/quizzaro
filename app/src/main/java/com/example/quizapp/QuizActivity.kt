@@ -1,5 +1,6 @@
 package com.example.quizapp
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -53,7 +54,10 @@ class QuizActivity : AppCompatActivity() {
                 score++
         }
         if(count>=list.size) {
-            Toast.makeText(this@QuizActivity, score.toString(), Toast.LENGTH_LONG).show()
+            val intent= Intent(this, ScoreActivity::class.java)
+            intent.putExtra("SCORE",score)
+            startActivity(intent)
+            finish()
         }
         else {
             binding.questionNo.text = "${count + 1}/10"
