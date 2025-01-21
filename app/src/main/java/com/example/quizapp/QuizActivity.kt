@@ -56,52 +56,95 @@ class QuizActivity : AppCompatActivity() {
 
     }
 
-    fun nextData(prevOp: Int) {
-        if(prevOp!=0) {
-            if(list[count-1].correctAnswer==prevOp)
-                score++
-        }
-        if(count>=list.size) {
-            val (username, maxScore) = getUserData(this)
-            if (score>maxScore) {
-                val userId = Firebase.auth.currentUser?.uid.toString()
-                Firebase.firestore.collection("userBase")
-                    .whereEqualTo("userId", userId)
-                    .get()
-                    .addOnCompleteListener { result ->
-                        if (result.isSuccessful) {
-                            for (document in result.result!!) {
-                                // Update the maxScore field for the current user document
-                                Firebase.firestore.collection("userBase")
-                                    .document(document.id)
-                                    .update("maxScore", score)
-                                    .addOnSuccessListener {
-                                        Log.d(TAG, "MaxScore updated successfully")
-                                    }
-                                    .addOnFailureListener { exception ->
-                                        Log.e(TAG, "Error updating maxScore: ", exception)
-                                    }
-                            }
-                        } else {
-                            Log.e(TAG, "Error fetching documents: ", result.exception)
-                        }
-                    }
-                saveUserData(this, username, score)
-            }
-            val intent= Intent(this, ScoreActivity::class.java)
-            intent.putExtra("SCORE",score)
-            startActivity(intent)
-            finish()
-        }
-        else {
-            binding.questionNo.text = "${count + 1}/10"
-            binding.Question.text = list[count].question
-            binding.option1.text = list[count].option1
-            binding.option2.text = list[count].option2
-            binding.option3.text = list[count].option3
-            binding.option4.text = list[count].option4
+    private fun nextData(prevOp: Int) {
+        if(prevOp==0) {
+            resetOptionColors()
+            updateQuestion()
             count++
+            return
         }
+        setOptionsEnabled(false)
+        val isCorrect = list[count - 1].correctAnswer == prevOp
+
+        val selectedButton = when (prevOp) {
+            1 -> binding.option1
+            2 -> binding.option2
+            3 -> binding.option3
+            4 -> binding.option4
+            else -> null
+        }
+
+        selectedButton?.setBackgroundColor(
+            if (isCorrect) getColor(R.color.correct)
+            else getColor(R.color.wrong)
+        )
+
+        if (isCorrect) {
+            score++
+        }
+
+        selectedButton?.postDelayed({
+            resetOptionColors() // Reset colors of all options
+            setOptionsEnabled(true)
+            if (count >= list.size) {
+                // End of quiz
+                val (username, maxScore) = getUserData(this)
+                if (score > maxScore) {
+                    val userId = Firebase.auth.currentUser?.uid.toString()
+                    updateMaxScore(userId)
+                    saveUserData(this, username, score)
+                }
+                val intent = Intent(this, ScoreActivity::class.java)
+                intent.putExtra("SCORE", score)
+                startActivity(intent)
+                finish()
+            } else {
+                // Update the UI for the next question
+                updateQuestion()
+                count++
+            }
+        }, 1000) // 1-second delay
+    }
+
+    private fun updateQuestion() {
+        binding.questionNo.text = "${count + 1}/10"
+        binding.Question.text = list[count].question
+        binding.option1.text = list[count].option1
+        binding.option2.text = list[count].option2
+        binding.option3.text = list[count].option3
+        binding.option4.text = list[count].option4
+    }
+
+    private fun resetOptionColors() {
+        val defaultColor = getColor(R.color.highlight)
+        binding.option1.setBackgroundColor(defaultColor)
+        binding.option2.setBackgroundColor(defaultColor)
+        binding.option3.setBackgroundColor(defaultColor)
+        binding.option4.setBackgroundColor(defaultColor)
+    }
+
+    private fun updateMaxScore(userId: String?) {
+        Firebase.firestore.collection("userBase")
+            .whereEqualTo("userId", userId)
+            .get()
+            .addOnCompleteListener { result ->
+                if (result.isSuccessful) {
+                    for (document in result.result!!) {
+                        // Update the maxScore field for the current user document
+                        Firebase.firestore.collection("userBase")
+                            .document(document.id)
+                            .update("maxScore", score)
+                            .addOnSuccessListener {
+                                Log.d(TAG, "MaxScore updated successfully")
+                            }
+                            .addOnFailureListener { exception ->
+                                Log.e(TAG, "Error updating maxScore: ", exception)
+                            }
+                    }
+                } else {
+                    Log.e(TAG, "Error fetching documents: ", result.exception)
+                }
+            }
     }
 
     fun saveUserData(context: Context, username: String?, maxScore: Int) {
@@ -196,5 +239,12 @@ class QuizActivity : AppCompatActivity() {
 
         // Return the data as a pair
         return Pair(username, maxScore)
+    }
+
+    private fun setOptionsEnabled(enabled: Boolean) {
+        binding.option1.isEnabled = enabled
+        binding.option2.isEnabled = enabled
+        binding.option3.isEnabled = enabled
+        binding.option4.isEnabled = enabled
     }
 }
