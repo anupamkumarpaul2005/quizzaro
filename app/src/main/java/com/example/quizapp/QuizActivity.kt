@@ -4,7 +4,9 @@ import android.content.ContentValues.TAG
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.os.Build
 import android.os.Bundle
+import android.text.Html
 import android.util.Log
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
@@ -196,14 +198,14 @@ class QuizActivity : AppCompatActivity() {
             val results = response.getJSONArray("results")
             for (i in 0 until results.length()) {
                 val questionObject = results.getJSONObject(i)
-                val question = questionObject.getString("question")
-                val correctAnswer = questionObject.getString("correct_answer")
+                val question = parseHtml(questionObject.getString("question"))
+                val correctAnswer = parseHtml(questionObject.getString("correct_answer"))
                 val incorrectAnswers = questionObject.getJSONArray("incorrect_answers")
 
                 // Combine correct and incorrect answers
                 val options = mutableListOf<String>()
                 for (j in 0 until incorrectAnswers.length()) {
-                    options.add(incorrectAnswers.getString(j))
+                    options.add(parseHtml(incorrectAnswers.getString(j)))
                 }
                 options.add(correctAnswer)
                 options.shuffle() // Shuffle the options
@@ -227,6 +229,14 @@ class QuizActivity : AppCompatActivity() {
         }
 
         return questionList
+    }
+
+    fun parseHtml(text: String): String {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            Html.fromHtml(text, Html.FROM_HTML_MODE_LEGACY).toString()
+        } else {
+            Html.fromHtml(text).toString()
+        }
     }
 
     fun getUserData(context: Context): Pair<String?, Int> {
