@@ -28,11 +28,11 @@
         android:fontFamily="@font/aclonica"
         android:text="@string/AppName"
         android:textColor="@color/white"
-        android:textSize="32sp"
+        android:textSize="40sp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="@+id/imageView"
-        app:layout_constraintHorizontal_bias="1.0"
+        app:layout_constraintHorizontal_bias="0.194"
         app:layout_constraintStart_toStartOf="@+id/imageView"
         app:layout_constraintTop_toBottomOf="@+id/imageView"
-        app:layout_constraintVertical_bias="0.291" />
+        app:layout_constraintVertical_bias="0.217" />
 </androidx.constraintlayout.widget.ConstraintLayout>
